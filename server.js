@@ -1,31 +1,26 @@
 const express = require('express');
-const { GoogleGenAI } = require('@google/genai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-// התחברות ל-Gemini בעזרת המפתח שיוגדר בשרת
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 app.all('/voice', async (req, res) => {
-  // קבלת הטקסט שהמתקשר אמר מפרמטר ה-API של ימות המשיח
   const userText = req.query.ApiText || req.body.ApiText || 'שלום';
 
   try {
-    // שליחת הבקשה ל-Gemini
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: userText,
-      config: {
-        systemInstruction: 'אתה עוזר קולי בטלפון. ענה בקצרה ובבהירות, במשפט אחד או שניים בלבד, ללא תווים מיוחדים או עיצוב.'
-      }
+    const model = genAI.getGenerativeModel({ 
+      model: 'gemini-1.5-flash',
+      systemInstruction: 'אתה עוזר קולי בטלפון. ענה בקצרה ובבהירות, במשפט אחד או שניים בלבד, ללא תווים מיוחדים או עיצוב.'
     });
 
-    // ניקוי תווים שעלולים להפריע להקראה הטלפונית
-    const cleanText = response.text.replace(/[*#\n]/g, ' ');
+    const result = await model.generateContent(userText);
+    const responseText = result.response.text();
 
-    // מחזירים פקודה לימות המשיח: הקראת התשובה + בקשת קלט קולי נוסף
+    const cleanText = responseText.replace(/[*#\n]/g, ' ');
+
     res.send(`id_list_message=t-${cleanText}&read=t-נא לדבר לאחר הצפצוף=val,1,1,7,7,Hebrew,no,no,no`);
   } catch (error) {
     console.error('Error:', error);
